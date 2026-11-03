@@ -147,7 +147,7 @@ trustedTest("provides inlay hints and code actions", async () => {
 
 restrictedTest("runs no language server, so nothing checks code or answers semantic requests", async () => {
 	// Activation has started whatever runs; give a server time to (wrongly) publish diagnostics.
-	await vscode.extensions.getExtension("roc-lang.roc")!.activate();
+	await vscode.extensions.getExtension("roclang.roc")!.activate();
 	const broken = await open("Broken.roc");
 	await new Promise((resolve) => setTimeout(resolve, 3000));
 	assert.deepEqual(vscode.languages.getDiagnostics(broken.uri), []);

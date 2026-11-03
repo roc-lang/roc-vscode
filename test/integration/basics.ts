@@ -9,8 +9,8 @@ test("registers .roc files as the roc language", async () => {
 });
 
 test("activates the extension installed from the VSIX", async () => {
-	const extension = vscode.extensions.getExtension("roc-lang.roc");
-	assert.ok(extension, "extension roc-lang.roc is installed");
+	const extension = vscode.extensions.getExtension("roclang.roc");
+	assert.ok(extension, "extension roclang.roc is installed");
 	// Loading it from the source tree would hide packaging mistakes.
 	const extensionsDir = process.env["ROC_TEST_EXTENSIONS_DIR"] ?? "";
 	const relative = path.relative(extensionsDir, extension.extensionPath);

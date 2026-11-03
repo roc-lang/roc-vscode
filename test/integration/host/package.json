@@ -1,6 +1,6 @@
 {
 	"name": "roc-test-host",
-	"publisher": "roc-lang",
+	"publisher": "roclang",
 	"version": "0.0.0",
 	"private": true,
 	"description": "Empty extension that hosts the integration tests, so the extension under test can be the installed VSIX.",
