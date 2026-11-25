@@ -4,12 +4,12 @@ import * as vscode from "vscode";
 import { RocLanguageServer } from "./client";
 import { RocTaskProvider, runOnActiveFile, TASK_TYPE } from "./commands";
 import {
-	cleanUpOldNightlies,
+	cleanUpOldInstalls,
 	errorMessage,
-	getManagedNightly,
-	installLatestNightly,
-	maybeOfferNightlyUpdate,
-} from "./managedNightly";
+	getManagedRoc,
+	installLatestRelease,
+	maybeOfferUpdate,
+} from "./managedRoc";
 import { type RocResolution, resolveRoc } from "./rocBinary";
 
 let server: RocLanguageServer | undefined;
@@ -23,7 +23,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	const resolve = (): RocResolution =>
 		resolveRoc({
 			setting: vscode.workspace.getConfiguration("roc").get<string>("path", ""),
-			managedExecutable: getManagedNightly(context)?.executable,
+			managedExecutable: getManagedRoc(context)?.executable,
 			env: process.env,
 			platform: process.platform,
 			homedir: os.homedir(),
@@ -37,7 +37,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 			const resolution = resolve();
 			if (resolution.kind !== "found") {
 				await languageServer.stop();
-				languageServer.showStopped("roc not found", { title: "Install", command: "roc.installNightly" });
+				languageServer.showStopped("roc not found", { title: "Install", command: "roc.install" });
 				void reportMissingRoc(resolution);
 				return;
 			}
@@ -54,9 +54,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	};
 
 	const install = async (): Promise<void> => {
-		if ((await installLatestNightly(context, output)) === undefined) return;
+		if ((await installLatestRelease(context, output)) === undefined) return;
 		await restart();
-		await cleanUpOldNightlies(context);
+		await cleanUpOldInstalls(context);
 	};
 
 	const reportMissingRoc = async (resolution: Exclude<RocResolution, { kind: "found" }>): Promise<void> => {
@@ -66,11 +66,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 				: "The roc executable was not found. The Roc extension needs it for diagnostics, formatting and more.";
 		const choice = await vscode.window.showWarningMessage(
 			message,
-			"Download Nightly",
+			"Download Roc",
 			"Select Executable…",
 			"Install Instructions",
 		);
-		if (choice === "Download Nightly") await install();
+		if (choice === "Download Roc") await install();
 		else if (choice === "Select Executable…") await vscode.commands.executeCommand("roc.selectExecutable");
 		else if (choice === "Install Instructions") await vscode.env.openExternal(vscode.Uri.parse("https://www.roc-lang.org/install"));
 	};
@@ -85,7 +85,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	context.subscriptions.push(
 		vscode.commands.registerCommand("roc.restartServer", restart),
 		vscode.commands.registerCommand("roc.showOutput", () => output.show()),
-		vscode.commands.registerCommand("roc.installNightly", install),
+		vscode.commands.registerCommand("roc.install", install),
 		vscode.commands.registerCommand("roc.selectExecutable", selectExecutable),
 		vscode.commands.registerCommand("roc.runFile", (uri?: vscode.Uri) => runOnActiveFile("run", getExecutable, uri)),
 		vscode.commands.registerCommand("roc.testFile", (uri?: vscode.Uri) => runOnActiveFile("test", getExecutable, uri)),
@@ -98,10 +98,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	);
 
 	await restart();
-	void cleanUpOldNightlies(context);
+	void cleanUpOldInstalls(context);
 
 	const resolution = resolve();
-	void maybeOfferNightlyUpdate(context, output, resolution.kind === "found" && resolution.source === "managed", install);
+	void maybeOfferUpdate(context, output, resolution.kind === "found" && resolution.source === "managed", install);
 }
 
 export async function deactivate(): Promise<void> {

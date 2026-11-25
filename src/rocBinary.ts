@@ -12,7 +12,7 @@ export type RocResolution =
 export interface ResolveOptions {
 	/** The `roc.path` setting, possibly empty. */
 	setting: string;
-	/** Executable of the nightly installed by this extension, if any. */
+	/** Executable of the roc installed by this extension, if any. */
 	managedExecutable: string | undefined;
 	env: Record<string, string | undefined>;
 	platform: string;

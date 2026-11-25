@@ -43,7 +43,7 @@ export class RocLanguageServer implements vscode.Disposable {
 		const serverOptions: ServerOptions = { command: executable, args };
 		const clientOptions: LanguageClientOptions = {
 			documentSelector,
-			// Nightlies from October 2026 only check code with this.
+			// Roc only checks code with this.
 			initializationOptions: { trustedWorkspace: true },
 			outputChannel: this.output,
 		};
@@ -128,7 +128,7 @@ class RocFmtFormatter implements vscode.DocumentFormattingEditProvider {
 	}
 }
 
-/** `Roc compiler version nightly-2026-10-16-f14c106` → `nightly-2026-10-16-f14c106`. */
+/** `Roc compiler version 0.1.0_RC1` → `0.1.0_RC1`. */
 function rocVersion(executable: string): Promise<string> {
 	return new Promise((resolve) => {
 		execFile(executable, ["version"], { timeout: 10_000 }, (error, stdout) => {

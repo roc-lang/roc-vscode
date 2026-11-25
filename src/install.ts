@@ -1,4 +1,4 @@
-// Downloads, verifies and unpacks Roc nightlies. Free of vscode imports so it can be smoke-tested from node.
+// Downloads, verifies and unpacks Roc releases. Free of vscode imports so it can be smoke-tested from node.
 import { execFile } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
 import { createWriteStream } from "node:fs";
@@ -9,27 +9,29 @@ import { pipeline } from "node:stream/promises";
 import type { ReadableStream } from "node:stream/web";
 import { promisify } from "node:util";
 import {
+	type InstalledRoc,
 	isAllowedDownloadUrl,
-	NIGHTLY_RELEASES_API,
-	nightlyTagDate,
+	isRelease,
+	isSafeTag,
 	parseSha256Digest,
 	type Release,
+	RELEASES_API,
 	rocExecutableName,
-	selectNightlyAsset,
+	selectAsset,
+	selectLatestRelease,
 } from "./platform";
 
 const execFileAsync = promisify(execFile);
 
 const USER_AGENT = "roc-vscode";
 
-export interface InstalledNightly {
-	tag: string;
-	executable: string;
-}
+const INSTALL_DIR = "releases";
+/** Where version 0.1.0 of this extension put nightlies. */
+const LEGACY_INSTALL_DIR = "nightlies";
 
 export interface InstallOptions {
 	release: Release;
-	/** Directory owned by the extension; nightlies go in `<storageDir>/nightlies/<tag>`. */
+	/** Directory owned by the extension; releases go in `<storageDir>/releases/<tag>`. */
 	storageDir: string;
 	platform: string;
 	arch: string;
@@ -38,14 +40,24 @@ export interface InstallOptions {
 	onProgress?: (fraction: number | undefined) => void;
 }
 
-export function fetchLatestRelease(signal?: AbortSignal): Promise<Release> {
-	return fetchRelease("latest", signal);
+/** Not GitHub's `/releases/latest`: that skips prereleases, and so would return a release of the old compiler until 0.1.0 is out. */
+export async function fetchLatestRelease(platform: string, arch: string, signal?: AbortSignal, token?: string): Promise<Release> {
+	const releases = await fetchGitHubApi(`${RELEASES_API}?per_page=100`, signal, token);
+	if (!Array.isArray(releases)) throw new Error("Unexpected response from the GitHub API for the list of Roc releases.");
+	const latest = selectLatestRelease(releases.filter(isRelease), platform, arch);
+	if (latest === undefined) throw unsupportedPlatform(platform, arch);
+	return latest;
 }
 
-/** `tag` is a nightly tag or `latest`. `token` is only for CI, where unauthenticated requests share a rate limit with every other runner. */
 export async function fetchRelease(tag: string, signal?: AbortSignal, token?: string): Promise<Release> {
+	const release = await fetchGitHubApi(`${RELEASES_API}/tags/${encodeURIComponent(tag)}`, signal, token);
+	if (!isRelease(release)) throw new Error(`Unexpected response from the GitHub API for Roc ${tag}.`);
+	return release;
+}
+
+/** `token` is only for CI, where unauthenticated requests share a rate limit with every other runner. */
+async function fetchGitHubApi(url: string, signal?: AbortSignal, token?: string): Promise<unknown> {
 	const timeout = AbortSignal.timeout(30_000);
-	const url = tag === "latest" ? `${NIGHTLY_RELEASES_API}/latest` : `${NIGHTLY_RELEASES_API}/tags/${encodeURIComponent(tag)}`;
 	const response = await fetch(url, {
 		headers: {
 			Accept: "application/vnd.github+json",
@@ -56,26 +68,24 @@ export async function fetchRelease(tag: string, signal?: AbortSignal, token?: st
 		signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
 	});
 	if (!response.ok) {
-		throw new Error(`GitHub API request for the ${tag} Roc nightly failed: ${response.status} ${response.statusText}`);
+		throw new Error(`GitHub API request to ${url} failed: ${response.status} ${response.statusText}`);
 	}
-	const release = (await response.json()) as Partial<Release>;
-	if (typeof release.tag_name !== "string" || !Array.isArray(release.assets)) {
-		throw new Error(`Unexpected response from the GitHub API for the ${tag} Roc nightly.`);
-	}
-	return release as Release;
+	return response.json();
 }
 
-export async function installNightly(options: InstallOptions): Promise<InstalledNightly> {
+function unsupportedPlatform(platform: string, arch: string): Error {
+	return new Error(
+		`There is no Roc release for ${platform} ${arch}. See https://github.com/roc-lang/roc/blob/main/BUILDING_FROM_SOURCE.md for building Roc from source.`,
+	);
+}
+
+export async function installRelease(options: InstallOptions): Promise<InstalledRoc> {
 	const { release, platform, arch } = options;
-	if (nightlyTagDate(release.tag_name) === undefined) {
-		throw new Error(`Unexpected nightly tag name: ${release.tag_name}`);
+	if (!isSafeTag(release.tag_name)) {
+		throw new Error(`Unexpected release tag name: ${release.tag_name}`);
 	}
-	const asset = selectNightlyAsset(release, platform, arch);
-	if (asset === undefined) {
-		throw new Error(
-			`There is no Roc nightly for ${platform} ${arch}. See https://github.com/roc-lang/roc/blob/main/BUILDING_FROM_SOURCE.md for building Roc from source.`,
-		);
-	}
+	const asset = selectAsset(release, platform, arch);
+	if (asset === undefined) throw unsupportedPlatform(platform, arch);
 	if (!isAllowedDownloadUrl(asset.browser_download_url) || !/^[\w.-]+$/.test(asset.name)) {
 		throw new Error(`Refusing to download unexpected asset: ${asset.browser_download_url}`);
 	}
@@ -84,9 +94,9 @@ export async function installNightly(options: InstallOptions): Promise<Installed
 		throw new Error(`The release asset ${asset.name} has no sha256 digest, so it can't be verified.`);
 	}
 
-	const nightliesDir = path.join(options.storageDir, "nightlies");
-	const tagDir = path.join(nightliesDir, release.tag_name);
-	const staging = path.join(nightliesDir, `.partial-${randomBytes(6).toString("hex")}`);
+	const installDir = path.join(options.storageDir, INSTALL_DIR);
+	const tagDir = path.join(installDir, release.tag_name);
+	const staging = path.join(installDir, `.partial-${randomBytes(6).toString("hex")}`);
 	await fs.mkdir(staging, { recursive: true });
 	try {
 		const archive = path.join(staging, asset.name);
@@ -106,27 +116,24 @@ export async function installNightly(options: InstallOptions): Promise<Installed
 
 		await fs.rm(tagDir, { recursive: true, force: true });
 		await fs.rename(staging, tagDir);
-		return { tag: release.tag_name, executable: path.join(tagDir, relativeExecutable) };
+		return { tag: release.tag_name, executable: path.join(tagDir, relativeExecutable), publishedAt: release.published_at };
 	} catch (error) {
 		await fs.rm(staging, { recursive: true, force: true });
 		throw error;
 	}
 }
 
-/** Removes every managed nightly except `keepTag`. Best effort: a running roc.exe can't be deleted on Windows. */
-export async function removeOtherNightlies(storageDir: string, keepTag: string): Promise<void> {
-	const nightliesDir = path.join(storageDir, "nightlies");
-	let entries: string[];
-	try {
-		entries = await fs.readdir(nightliesDir);
-	} catch {
-		return;
+/** Removes every managed roc except `keepTag`. Best effort: a running roc.exe can't be deleted on Windows. */
+export async function removeOtherInstalls(storageDir: string, keepTag: string): Promise<void> {
+	for (const dir of [INSTALL_DIR, LEGACY_INSTALL_DIR]) {
+		const installDir = path.join(storageDir, dir);
+		const entries = await fs.readdir(installDir).catch(() => []);
+		await Promise.all(
+			entries
+				.filter((entry) => entry !== keepTag)
+				.map((entry) => fs.rm(path.join(installDir, entry), { recursive: true, force: true }).catch(() => undefined)),
+		);
 	}
-	await Promise.all(
-		entries
-			.filter((entry) => entry !== keepTag)
-			.map((entry) => fs.rm(path.join(nightliesDir, entry), { recursive: true, force: true }).catch(() => undefined)),
-	);
 }
 
 /** Streams `url` to `file`, returning the sha256 of what was written. */
@@ -166,7 +173,7 @@ async function extract(archive: string, destination: string, platform: string, s
 	await execFileAsync(tar, args, { timeout: 5 * 60_000, ...(signal ? { signal } : {}) });
 }
 
-/** The archives contain a single `roc_nightly-<platform>-<date>-<sha>/` directory holding `roc`. */
+/** The archives contain a single `roc-<platform>-<tag>/` directory holding `roc`. */
 async function findExecutable(dir: string, platform: string): Promise<string> {
 	const name = rocExecutableName(platform);
 	for (const entry of await fs.readdir(dir, { withFileTypes: true })) {

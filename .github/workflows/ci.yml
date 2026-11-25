@@ -68,11 +68,11 @@ jobs:
       - name: Unit and grammar tests
         run: npm test
 
-      # The nightly is pinned in test/roc-nightly.txt and bumped by roc-nightly-bump.yml.
+      # The release is pinned in test/roc-version.txt and bumped by roc-release-bump.yml.
       # Uses the extension's own installer, so this also tests downloading, verifying and unpacking.
-      - name: Install the pinned Roc nightly
+      - name: Install the pinned Roc release
         id: roc
-        run: npm run test:nightly
+        run: npm run test:install
         env:
           GITHUB_TOKEN: ${{ github.token }}
 

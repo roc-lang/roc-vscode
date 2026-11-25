@@ -15,22 +15,22 @@ function options(overrides: Partial<ResolveOptions> & { executables?: string[] }
 	};
 }
 
-test("prefers roc.path, then the managed nightly, then PATH", () => {
-	const all = ["/opt/roc/roc", "/store/nightly/roc", "/usr/bin/roc"];
-	assert.deepEqual(resolveRoc(options({ setting: "/opt/roc/roc", managedExecutable: "/store/nightly/roc", executables: all })), {
+test("prefers roc.path, then the managed roc, then PATH", () => {
+	const all = ["/opt/roc/roc", "/store/managed/roc", "/usr/bin/roc"];
+	assert.deepEqual(resolveRoc(options({ setting: "/opt/roc/roc", managedExecutable: "/store/managed/roc", executables: all })), {
 		kind: "found",
 		executable: "/opt/roc/roc",
 		source: "setting",
 	});
-	assert.deepEqual(resolveRoc(options({ managedExecutable: "/store/nightly/roc", executables: all })), {
+	assert.deepEqual(resolveRoc(options({ managedExecutable: "/store/managed/roc", executables: all })), {
 		kind: "found",
-		executable: "/store/nightly/roc",
+		executable: "/store/managed/roc",
 		source: "managed",
 	});
 	assert.deepEqual(resolveRoc(options({ executables: all })), { kind: "found", executable: "/usr/bin/roc", source: "path" });
 });
 
-test("a missing managed nightly falls back to PATH", () => {
+test("a missing managed roc falls back to PATH", () => {
 	const resolution = resolveRoc(options({ managedExecutable: "/deleted/roc", executables: ["/usr/bin/roc"] }));
 	assert.deepEqual(resolution, { kind: "found", executable: "/usr/bin/roc", source: "path" });
 });

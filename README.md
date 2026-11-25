@@ -35,7 +35,7 @@ In restricted mode, `roc.path` and `roc.server.args` are only read from your use
 | `roc.path` | `""` | Path to the `roc` executable. `~` and `${userHome}` are expanded. |
 | `roc.server.args` | `["experimental-lsp"]` | Arguments that start the language server. |
 | `roc.server.debugFlags` | `[]` | Any of `--debug-transport`, `--debug-build`, `--debug-syntax`, `--debug-server`. The log file path appears in the **Roc** output. Transport logs contain your source code. |
-| `roc.nightly.checkForUpdates` | `true` | Weekly update check for the nightly installed by the extension. |
+| `roc.checkForUpdates` | `true` | Weekly check for a newer [official release](https://github.com/roc-lang/roc/releases) than the one installed by the extension. |
 | `roc.trace.server` | `"off"` | Log language server messages to the **Roc** output. |
 
 ## Tasks
@@ -57,7 +57,7 @@ In restricted mode, `roc.path` and `roc.server.args` are only read from your use
 npm ci                    # install pinned dependencies (install scripts are disabled in .npmrc)
 npm run check             # typecheck
 npm test                  # unit tests and grammar snapshot tests
-npm run test:nightly      # install the nightly pinned in test/roc-nightly.txt into .vscode-test/roc with the extension's installer
+npm run test:install      # install the Roc release pinned in test/roc-version.txt into .vscode-test/roc with the extension's installer
 ROC_PATH=/path/to/roc npm run test:integration  # package, install and test the VSIX in a real VS Code
 npm run package           # build roc-<version>.vsix
 ```
