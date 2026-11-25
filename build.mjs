@@ -32,7 +32,7 @@ if (tests) {
 	builds.push(
 		{
 			...common,
-			entryPoints: [...unitTests, "test/grammar/run.ts", "test/integration/runTest.ts", "test/nightly/install.ts"],
+			entryPoints: [...unitTests, "test/grammar/run.ts", "test/integration/runTest.ts", "test/install/install.ts"],
 			outdir: "dist-test",
 			outbase: "test",
 			format: "esm",

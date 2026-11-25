@@ -93,7 +93,7 @@
 					"type": "string",
 					"default": "",
 					"scope": "machine-overridable",
-					"markdownDescription": "Path to the `roc` executable. `${userHome}` and a leading `~` are expanded. Leave empty to use the nightly installed by this extension, or else `roc` from `PATH`."
+					"markdownDescription": "Path to the `roc` executable. `${userHome}` and a leading `~` are expanded. Leave empty to use the Roc release installed by this extension, or else `roc` from `PATH`."
 				},
 				"roc.server.args": {
 					"type": "array",
@@ -121,10 +121,16 @@
 					"default": [],
 					"markdownDescription": "Debug logging for the language server. Logs are written to a file in the Roc cache directory; its path is printed in the **Roc** output channel. Note that `--debug-transport` logs contain the full contents of your files."
 				},
+				"roc.checkForUpdates": {
+					"type": "boolean",
+					"default": true,
+					"markdownDescription": "Once a week, check whether a newer official Roc release is available. Only applies when using the Roc release installed by this extension."
+				},
 				"roc.nightly.checkForUpdates": {
 					"type": "boolean",
 					"default": true,
-					"markdownDescription": "Once a week, check whether a newer Roc nightly is available. Only applies when using the nightly installed by this extension."
+					"markdownDescription": "Old name of `#roc.checkForUpdates#`. Updates are only checked for when both are on.",
+					"markdownDeprecationMessage": "Use `#roc.checkForUpdates#` instead."
 				},
 				"roc.trace.server": {
 					"type": "string",
@@ -150,8 +156,8 @@
 				"category": "Roc"
 			},
 			{
-				"command": "roc.installNightly",
-				"title": "Install or Update Nightly",
+				"command": "roc.install",
+				"title": "Install or Update Roc",
 				"category": "Roc"
 			},
 			{
@@ -249,7 +255,7 @@
 		"test": "node build.mjs --tests && node --test \"dist-test/unit/*.test.mjs\" && node dist-test/grammar/run.mjs",
 		"test:grammar": "node build.mjs --tests && node dist-test/grammar/run.mjs",
 		"test:integration": "node build.mjs --tests && node dist-test/integration/runTest.mjs",
-		"test:nightly": "node build.mjs --tests && node dist-test/nightly/install.mjs",
+		"test:install": "node build.mjs --tests && node dist-test/install/install.mjs",
 		"vscode:prepublish": "node build.mjs --production",
 		"package": "vsce package"
 	},

@@ -1,6 +1,6 @@
 // Each request goes VS Code -> the installed extension -> vscode-languageclient -> roc and back.
 // These check that bridge: a result arrives, has the right shape and points into the document.
-// Whether the answer is right is up to the compiler's own tests, so these hold across nightlies.
+// Whether the answer is right is up to the compiler's own tests, so these hold across Roc releases.
 import assert from "node:assert/strict";
 import * as vscode from "vscode";
 import {
